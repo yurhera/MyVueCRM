@@ -1,4 +1,4 @@
-# crm
+# myCRM vue.js
 
 ## Project setup
 ```

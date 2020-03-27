@@ -20,6 +20,18 @@ export default {
                 commit('setInfo', infoFromBase)
             }catch (e) {
                 commit('setError', e)
+                throw e
+            }
+        },
+        async updateInfo({dispatch, commit, getters}, toUpdate){
+            try{
+                const uid = await dispatch('getUid')
+                const updateData = {...getters.info, ...toUpdate}
+                await firebase.database().ref(`/user/${uid}/info`).update(updateData)
+                commit('setInfo', updateData)
+            }catch (e) {
+                commit('setError', e)
+                throw e
             }
         }
     },

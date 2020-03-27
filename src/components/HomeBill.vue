@@ -3,9 +3,11 @@
         <div class="card light-blue bill-card">
             <div class="card-content white-text">
                 <span class="card-title">Рахунок у валюті</span>
-
-                <p class="currency-line">
-                    <span>{{bill | currency('UA')}}</span>
+                <p
+                        v-for = "cur in currencies"
+                        :key = "cur"
+                        class="currency-line">
+                    <span>{{getCurrency(cur) | currencyFilter(cur)}}</span>
                 </p>
             </div>
         </div>
@@ -15,10 +17,19 @@
 <script>
     export default {
         name: "homeBill",
+        props: ['rates'],
+        data: () => ({
+            currencies: ['UAH', 'USD', 'EUR']
+        }),
         computed: {
-            bill(){
-                return this.$store.getters.info.bill
-            }
+            base(){
+                return this.$store.getters.info.bill / (this.rates['UAH'] / this.rates['EUR'] )
+            },
+        },
+        methods: {
+           getCurrency(currency){
+               return Math.floor(this.base * this.rates[currency])
+           }
         }
     }
 </script>

@@ -1,123 +1,115 @@
 <template>
     <div>
-        <nav class="navbar orange lighten-1">
-            <div class="nav-wrapper">
-                <div class="navbar-left">
-                    <a href="#">
-                        <i class="material-icons black-text">dehaze</i>
-                    </a>
-                    <span class="black-text">12.12.12</span>
+        <div class="page-title">
+
+                <div class="col s8">
+                    <h3>История записей</h3>
+                </div>
+                <div class="col s4 offset-s6">
+                    <select ref="select" v-model="pageSize" @change="rewritePagination" class="center">
+                        <option
+                                v-for="n in numbers"
+                                :key="n"
+                        >{{n}}
+                        </option>
+                    </select>
                 </div>
 
-                <ul class="right hide-on-small-and-down">
-                    <li>
-                        <a
-                                class="dropdown-trigger black-text"
-                                href="#"
-                                data-target="dropdown"
-                        >
-                            USER NAME
-                            <i class="material-icons right">arrow_drop_down</i>
-                        </a>
-
-                        <ul id='dropdown' class='dropdown-content'>
-                            <li>
-                                <a href="#" class="black-text">
-                                    <i class="material-icons">account_circle</i>Профиль
-                                </a>
-                            </li>
-                            <li class="divider" tabindex="-1"></li>
-                            <li>
-                                <a href="#" class="black-text">
-                                    <i class="material-icons">assignment_return</i>Выйти
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <ul class="sidenav app-sidenav open">
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Счет</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">История</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Планирование</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Новая запись</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Категории</a>
-            </li>
-        </ul>
-
-        <main class="app-content">
-            <div class="app-page">
-
-                <div>
-                    <div class="page-title">
-                        <h3>История записей</h3>
-                    </div>
-
-                    <div class="history-chart">
-                        <canvas></canvas>
-                    </div>
-
-                    <section>
-                        <table>
-                            <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Сумма</th>
-                                <th>Дата</th>
-                                <th>Категория</th>
-                                <th>Тип</th>
-                                <th>Открыть</th>
-                            </tr>
-                            </thead>
-
-                            <tbody>
-                            <tr>
-                                <td>1</td>
-                                <td>1212</td>
-                                <td>12.12.32</td>
-                                <td>name</td>
-                                <td>
-                                    <span class="white-text badge red">Расход</span>
-                                </td>
-                                <td>
-                                    <button class="btn-small btn">
-                                        <i class="material-icons">open_in_new</i>
-                                    </button>
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </section>
-                </div>
-
-            </div>
-        </main>
-
-        <div class="fixed-action-btn">
-            <a class="btn-floating btn-large blue" href="#">
-                <i class="large material-icons">add</i>
-            </a>
         </div>
+
+        <div class="history-chart">
+            <canvas ref="canvas"></canvas>
+        </div>
+
+        <Loader v-if="loading" />
+
+        <p class="center" v-else-if="!records.length">Немає записів</p>
+
+        <section v-else>
+            <HistoryTable  :records="items"/>
+
+            <paginate class="center"
+                    v-model="page"
+                    :page-count="pageCount"
+                    :click-handler="pageChangeHandler(page, pageSize)"
+                    :prev-text="'Вперед'"
+                    :next-text="'Назад'"
+                    :container-class="'pagination'"
+                    :page-class="'waves-effect'">
+            </paginate>
+        </section>
     </div>
 </template>
 
 <script>
+    import paginationMixin from "../mixins/pagination.mixin"
+    import HistoryTable from "../components/historyTable"
+    import {Pie} from 'vue-chartjs'
+
     export default {
-        name: "History"
+        name: "history",
+        extends: Pie,
+        mixins: [paginationMixin],
+        data: () => ({
+            loading: true,
+            records: [],
+            categories: [],
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        }),
+        async mounted(){
+            this.records = await this.$store.dispatch('fetchRecords')
+            const categories = await this.$store.dispatch('fetchCategories')
+            this.categories = categories
+            this.setup(categories)
+
+            this.loading = false
+            this.select = window.M.FormSelect.init(this.$refs.select, this.numbers)
+        },
+        methods: {
+            setup(categories){
+                this.setupPagination(this.records.map(record => {
+                    return {
+                        ...record,
+                        categoryName: categories.find(c => c.id === record.categoryId).name,
+                        typeClass: record.type === 'income' ? 'green' : 'red',
+                        typeText: record.type === 'income' ? 'Дохід' : 'Витрата'
+                    }
+                }))
+
+                this.renderChart({
+                    labels: this.categories.map(t => t.name),
+                    datasets: [
+                        {
+                            label: 'Витрати по категоріям',
+                            backgroundColor: ['#f87979', '#F0F8FF', '#7FFFD4','#7FFF00', '#D2691E', '#00008B', '#8B008B'],
+                            data: categories.map(c =>
+                                this.records.reduce((total, r) =>
+                                    r.type === 'outcome' && c.id === r.categoryId ? total += +r.amount : total, 0)),
+                        }
+                    ]
+                }, this.options)
+
+
+            },
+            rewritePagination(){
+                this.setPageSize(this.pageSize)
+                this.setup(this.categories)
+            }
+        },
+        components: {
+            HistoryTable
+        }
     }
 </script>
 
 <style scoped>
-
+    .select-wrapper input.select-dropdown{
+        text-align: center;
+    }
+    .dropdown-content li{
+        text-align: center;
+    }
 </style>

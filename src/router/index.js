@@ -1,5 +1,6 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
+import firebase from "firebase"
 
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
@@ -14,12 +15,7 @@ import Register from "../views/Register"
 Vue.use(VueRouter)
 
 const routes = [
-  {
-    path: '/',
-    name: 'Home',
-    meta: {layout: 'main'},
-    component: Home, Login, Categories, DetailRecord, History, Planning, Profile, Record, Register
-  },
+
   {
     path: '/login',
     name: 'Login',
@@ -36,39 +32,39 @@ const routes = [
     component: () => import(/* webpackChunkName: "about" */ '../views/Register.vue')
   },
   {
-    path: '/home',
+    path: '/',
     name: 'Home',
-    meta: {layout: 'main'},
-    component: () => import(/* webpackChunkName: "about" */ '../views/Home.vue')
+    meta: {layout: 'main', auth: true},
+    component: Home, Login, Categories, DetailRecord, History, Planning, Profile, Record, Register
   },
   {
     path: '/categories',
     name: 'Categories',
-    meta: {layout: 'main'},
+    meta: {layout: 'main', auth: true},
     component: () => import(/* webpackChunkName: "about" */ '../views/Categories.vue')
   },
   {
-    path: '/detail-record',
+    path: '/detail/:id',
     name: 'DetailRecord',
-    meta: {layout: 'main'},
+    meta: {layout: 'main', auth: true},
     component: () => import(/* webpackChunkName: "about" */ '../views/DetailRecord.vue')
   },
   {
     path: '/history',
     name: 'History',
-    meta: {layout: 'main'},
+    meta: {layout: 'main', auth: true},
     component: () => import(/* webpackChunkName: "about" */ '../views/History.vue')
   },
   {
     path: '/planning',
     name: 'Planning',
-    meta: {layout: 'main'},
+    meta: {layout: 'main', auth: true},
     component: () => import(/* webpackChunkName: "about" */ '../views/Planning.vue')
   },
   {
     path: '/profile',
     name: 'Profile',
-    meta: {layout: 'main'},
+    meta: {layout: 'main', auth: true},
     component: () => import(/* webpackChunkName: "about" */ '../views/Profile.vue')
   },
   {
@@ -82,6 +78,19 @@ const routes = [
 const router = new VueRouter({
   routes,
   mode: 'history'
+})
+
+//Защита роута, прикольно
+
+router.beforeEach((to, from, next) => {
+  const currentUser = firebase.auth().currentUser
+  const requireAuth = to.matched.some(record => record.meta.auth)
+
+  if(requireAuth && !currentUser){
+    next('/login?message=login')
+  }else {
+    next()
+  }
 })
 
 export default router

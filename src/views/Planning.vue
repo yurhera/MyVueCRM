@@ -1,101 +1,88 @@
 <template>
-    <div>
-        <nav class="navbar orange lighten-1">
-            <div class="nav-wrapper">
-                <div class="navbar-left">
-                    <a href="#">
-                        <i class="material-icons black-text">dehaze</i>
-                    </a>
-                    <span class="black-text">12.12.12</span>
-                </div>
-
-                <ul class="right hide-on-small-and-down">
-                    <li>
-                        <a
-                                class="dropdown-trigger black-text"
-                                href="#"
-                                data-target="dropdown"
-                        >
-                            USER NAME
-                            <i class="material-icons right">arrow_drop_down</i>
-                        </a>
-
-                        <ul id='dropdown' class='dropdown-content'>
-                            <li>
-                                <a href="#" class="black-text">
-                                    <i class="material-icons">account_circle</i>Профиль
-                                </a>
-                            </li>
-                            <li class="divider" tabindex="-1"></li>
-                            <li>
-                                <a href="#" class="black-text">
-                                    <i class="material-icons">assignment_return</i>Выйти
-                                </a>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-        </nav>
-
-        <ul class="sidenav app-sidenav open">
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Счет</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">История</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Планирование</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Новая запись</a>
-            </li>
-            <li>
-                <a href="#" class="waves-effect waves-orange pointer">Категории</a>
-            </li>
-        </ul>
-
-        <main class="app-content">
-            <div class="app-page">
-
-
                 <div>
                     <div class="page-title">
-                        <h3>Планирование</h3>
-                        <h4>12 212</h4>
+                        <h3>Планування</h3>
+                        <h4>{{info.bill | currencyFilter('UAH')}}</h4>
                     </div>
 
-                    <section>
-                        <div>
+                    <Loader v-if="loading" />
+
+                    <div v-else-if="!categories.length" class="col s12 m6 center"
+                    >
+                        <div class="card-panel teal">
+                            <span class="white-text">
+                            <h2>Немає категорій :(</h2>
+                            <p>У вас ще нема ніяких категорій!</p>
+                            </span>
+                        </div>
+                        <p><router-link to="/categories">Додайте зараз, це ж так просто!</router-link></p>
+                    </div>
+
+                    <section v-else>
+                        <div v-tooltip="cat.tooltip"
+                                v-for="cat in categories"
+                                :key="cat.id"
+                        >
                             <p>
-                                <strong>Девушка:</strong>
-                                12 122 из 14 0000
+                                <strong>{{cat.name}}:</strong>
+                                {{cat.spend | currencyFilter('UAH')}} из {{cat.limit | currencyFilter('UAH')}}
                             </p>
                             <div class="progress" >
                                 <div
-                                        class="determinate green"
-                                        style="width:40%"
+                                        class="determinate"
+                                        :class="[cat.progressColor]"
+                                        :style="{width: cat.progressPercent + '%'}"
                                 ></div>
                             </div>
                         </div>
                     </section>
                 </div>
 
-            </div>
-        </main>
-
-        <div class="fixed-action-btn">
-            <a class="btn-floating btn-large blue" href="#">
-                <i class="large material-icons">add</i>
-            </a>
-        </div>
-    </div>
 </template>
 
 <script>
+    import {mapGetters} from 'vuex'
+    import currencyFilter from "../filter/currency.filter";
     export default {
-        name: "Planning"
+        name: "planning",
+        data: () => ({
+            loading: true,
+            categories: []
+        }),
+        computed: {
+          ...mapGetters(['info'])
+        },
+        async mounted() {
+            const records = await this.$store.dispatch('fetchRecords')
+            const categories = await this.$store.dispatch('fetchCategories')
+
+            this.categories = categories.map(cat => {
+                const spend = records.filter(
+                    r => r.categoryId === cat.id)
+                    .filter(
+                        r => r.type === 'outcome'
+                    ).reduce((total, record) => {
+                        return total += +record.amount
+                    }, 0)
+                const percent = 100 * spend / cat.limit
+                const progressPercent = percent > 100 ? 100: percent
+                const progressColor = percent < 60
+                    ? 'green'
+                    : percent < 100
+                        ? 'yellow'
+                        : 'red'
+                const tooltipValue = cat.limit - spend
+                const tooltip = `${tooltipValue < 0 ? 'Перевищили на' : 'Залишилося' } ${currencyFilter(Math.abs(tooltipValue))}`
+                return {
+                    ...cat,
+                    progressColor,
+                    progressPercent,
+                    spend,
+                    tooltip
+                }
+            })
+            this.loading = false
+        }
     }
 </script>
 

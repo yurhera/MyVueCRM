@@ -1,5 +1,5 @@
 <template>
-    <div class="fixed-action-btn">
+    <div v-tooltip="'Додати новий запис'" data-position="left" class="fixed-action-btn">
         <router-link
             to="/record"
             class="btn-floating btn-large blue">
